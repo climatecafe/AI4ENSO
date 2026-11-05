@@ -122,6 +122,9 @@ These results come from synthetic data:
 
 ## Contributing and citing
 
+Maintained by Wei Zhang (dr.weizhang@outlook.com), University of Miami.
+
+
 Issues and pull requests are welcome. If you use this code, please cite the repository and
 the original papers for each method (listed in the docs pages).
 
