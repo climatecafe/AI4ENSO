@@ -98,6 +98,14 @@ What this shows:
    correction is sensitive to sampling. Physically based corrections, informed by the ROM
    fingerprint, are the next step.
 
+## Figures
+
+![Convergence with ensemble size](../examples/figures_emulator/fig1_convergence.png)
+
+![Recharge-oscillator fingerprint](../examples/figures_emulator/fig2_rom_fingerprint.png)
+
+![Forecast plumes for one start date](../examples/figures_emulator/fig3_plumes.png)
+
 ## Caveats
 
 - The SRO is a two-variable toy. Its first-winter skill (ACC ≈ 0.97) is far higher than in

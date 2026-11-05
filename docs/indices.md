@@ -66,6 +66,10 @@ print(I.multiyear_summary(I.multiyear_events(djf / djf.std())))
 `examples/01_enso_indices.py` runs these on a synthetic SST field. For real data, load an
 SST product such as ERSSTv5 with xarray and pass `.values`.
 
+## Figure
+
+![](../examples/figures/01_enso_indices.png)
+
 ## References
 
 - Ashok, K., Behera, S. K., Rao, S. A., Weng, H., & Yamagata, T. (2007). El Niño Modoki and its possible teleconnection. *JGR*, 112, C11007.

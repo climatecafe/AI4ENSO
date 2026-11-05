@@ -135,6 +135,10 @@ calibration brings the spread–skill ratio from 1.15 to 1.04 but does not impro
 the test years. The statistical factor is sensitive to sampling, which is a motivation for
 physically based corrections.
 
+## Figure
+
+![](../examples/figures/02_snp_markov.png)
+
 ## References
 
 - Clement, A. C., Cane, M. A., Klavans, J. M., He, C., & Murphy, L. N. (2026). A signal-to-noise problem in model simulation of decadal climate modes. *J. Climate*, 39(11), 2853–2869.

@@ -52,6 +52,10 @@ Compare several methods and several trained networks, and check the results agai
 physical expectations, for example with the recharge-oscillator fit in
 `ai4enso.dynamics.rofit`.
 
+## Figure
+
+![](../examples/figures/04_forecast_benchmarks.png)
+
 ## References
 
 - Ding, H., Newman, M., Alexander, M. A., & Wittenberg, A. T. (2018). Skillful climate forecasts of the tropical Indo-Pacific Ocean using model-analogs. *J. Climate*, 31, 5437–5459.

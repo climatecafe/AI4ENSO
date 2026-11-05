@@ -59,6 +59,30 @@ python -m pytest            # 23 tests, a few seconds
 python examples/02_snp_markov.py
 ```
 
+## Gallery
+
+All figures come from the example scripts and use synthetic data.
+
+**Signal-to-noise paradox in the Markov framework and a recharge oscillator** (`examples/02_snp_markov.py`)
+
+![SNP in the Markov framework](examples/figures/02_snp_markov.png)
+
+**ENSO indices, event detection and E/C indices** (`examples/01_enso_indices.py`)
+
+![ENSO indices](examples/figures/01_enso_indices.png)
+
+**Conceptual ENSO dynamics** (`examples/03_enso_dynamics.py`)
+
+![ENSO dynamics](examples/figures/03_enso_dynamics.png)
+
+**Forecast benchmarks and explainable AI** (`examples/04_forecast_benchmarks.py`)
+
+![Forecast benchmarks](examples/figures/04_forecast_benchmarks.png)
+
+**Generative emulator: skill, perfect-model skill and RPC versus ensemble size** (`examples/05_emulator_snp.py`)
+
+![Emulator convergence](examples/figures_emulator/fig1_convergence.png)
+
 ## Quick use
 
 ```python

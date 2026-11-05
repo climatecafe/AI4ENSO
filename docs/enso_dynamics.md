@@ -69,6 +69,10 @@ events in any index. `examples/03_enso_dynamics.py` shows, in the toy oscillator
 increase in multi-year El Niño persistence with σ_h, in the same direction as Bai et al.
 (2026).
 
+## Figure
+
+![](../examples/figures/03_enso_dynamics.png)
+
 ## References
 
 - Bai, K., Jin, Y., Zhang, W., Lin, X., & Kirtman, B. (2026). Atmospheric noise forcing increases multiyear El Niño events. *GRL*, 53(14), e2026GL123553.
