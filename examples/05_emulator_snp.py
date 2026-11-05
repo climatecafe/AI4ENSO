@@ -9,8 +9,8 @@
    skill, RPC, model SNR, ROM fingerprint and multi-year El Nino statistics.
 6. Correct for the SNP with an RPC-based rescaling estimated on training years.
 
-Run:  python demo_sro.py            (about 5-10 minutes on a laptop CPU)
-      python demo_sro.py --quick    (smaller, about 1-2 minutes)
+Run:  python examples/05_emulator_snp.py           (about 2 minutes on a laptop CPU)
+      python examples/05_emulator_snp.py --quick   (about 20 seconds)
 """
 import argparse
 import json
@@ -23,13 +23,21 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from ensosnp.sro import SROParams, simulate, make_hindcasts
-from ensosnp.rofit import fit_ro, summarize
-from ensosnp.emulator import GaussianEmulator, DiffusionEmulator
-from ensosnp import metrics as M
+import sys
+import types
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))  # run from a clone without installing
+
+from ai4enso.dynamics import SROParams, simulate, make_hindcasts, fit_ro, summarize
+from ai4enso.emulator import GaussianEmulator, DiffusionEmulator
+from ai4enso import verification as V
+from ai4enso.snp import metrics as S
+
+M = types.SimpleNamespace(**{**vars(V), **vars(S)})
 
 
-def main(quick=False, outdir="results"):
+def main(quick=False, outdir=os.path.join(HERE, "figures_emulator")):
     os.makedirs(outdir, exist_ok=True)
     t0 = time.time()
     n_years = 120 if quick else 220
@@ -238,6 +246,6 @@ def main(quick=False, outdir="results"):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="smaller run for a fast check")
-    ap.add_argument("--outdir", default="results")
+    ap.add_argument("--outdir", default=os.path.join(HERE, "figures_emulator"))
     args = ap.parse_args()
     main(quick=args.quick, outdir=args.outdir)
