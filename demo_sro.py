@@ -91,17 +91,19 @@ def main(quick=False, outdir="results"):
         row = {}
         for name, (eT, _) in ens.items():
             e = M.winter_mean(eT, start_month, w)
-            row[name] = {"acc": M.acc(e, ob), "rpc": M.rpc(e, ob), "snr": M.model_snr(e),
-                         "spread_skill": M.spread_skill(e, ob)}
+            row[name] = {"acc": M.acc(e, ob), "acc_perfect": M.perfect_model_acc(e),
+                         "rpc": M.rpc(e, ob), "rpc_corrected": M.rpc_corrected(e, ob),
+                         "snr": M.model_snr(e), "spread_skill": M.spread_skill(e, ob)}
         table[f"winter_{w + 1}"] = row
 
-    print("\nWinter (DJF) Nino-3.4 skill on test years")
-    print(f"{'ensemble':<16}" + "".join(f"{'W' + str(w + 1) + ' ACC':>9}{'RPC':>7}{'SNR':>7}" for w in range(3)))
+    print("\nWinter (DJF) Nino-3.4 on test years. ACC = vs observations; ACCpm = model vs itself;")
+    print("RPCc = bias-corrected RPC. SNP: ACC > ACCpm and RPCc > 1.")
+    print(f"{'ensemble':<16}" + "".join(f"{'W' + str(w + 1) + ' ACC':>9}{'ACCpm':>7}{'RPCc':>7}" for w in range(3)))
     for name in ens:
         line = f"{name:<16}"
         for w in range(3):
             r = table[f"winter_{w + 1}"][name]
-            line += f"{r['acc']:9.2f}{r['rpc']:7.2f}{r['snr']:7.2f}"
+            line += f"{r['acc']:9.2f}{r['acc_perfect']:7.2f}{r['rpc_corrected']:7.2f}"
         print(line)
 
     # ROM fingerprints (same estimator for every dataset)
@@ -161,25 +163,31 @@ def main(quick=False, outdir="results"):
     ob2 = M.winter_mean(obs_T[te], start_month, 1)
     conv = {k: M.convergence(M.winter_mean(v[0], start_month, 1), ob2, sizes, n_boot=50)
             for k, v in ens.items() if k != "physics_20"}
-    conv20 = M.convergence(M.winter_mean(hT[te], start_month, 1), ob2, [5, 10, 20], n_boot=50)
-
-    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.2))
     styles = {f"physics_{n_big}": ("k", "o", "Physics model"),
               f"gaussian_{n_big}": ("tab:blue", "s", "Gaussian emulator"),
               f"diffusion_{n_big}": ("tab:red", "^", "Diffusion emulator")}
     for k, c in conv.items():
         col, mk, lab = styles[k]
-        ax[0].plot(c["size"], c["acc"], color=col, marker=mk, label=lab)
-        ax[1].plot(c["size"], c["rpc"], color=col, marker=mk, label=lab)
-    ax[0].plot(conv20["size"], conv20["acc"], "k--", lw=1, label="Physics, 20 members")
-    for a, yl in zip(ax, ("ACC, winter-2 Nino-3.4", "RPC, winter-2 Nino-3.4")):
+        ax[0].plot(c["size"], c["acc"], color=col, marker=mk, label=f"{lab}: vs observations")
+        ax[0].plot(c["size"], c["acc_perfect"], color=col, marker=mk, ls="--", mfc="none",
+                   label=f"{lab}: vs itself (perfect model)")
+        ax[1].plot(c["size"], c["rpc_corrected"], color=col, marker=mk, label=f"{lab}: bias-corrected")
+    cp = conv[f"physics_{n_big}"]
+    ax[1].plot(cp["size"], cp["rpc"], color="0.5", ls=":", marker="o", mfc="none",
+               label="Physics model: naive estimate")
+    ax[0].set_ylabel("ACC, winter-2 Nino-3.4")
+    ax[1].set_ylabel("RPC, winter-2 Nino-3.4")
+    ax[0].set_title("Large ensembles recover skill, but the gap\nbetween the two curves (the SNP) stays", fontsize=10)
+    ax[1].set_title("Bias-corrected RPC is nearly flat: the SNP is a model\nproperty, measured more precisely with more members", fontsize=10)
+    for a in ax:
         a.set_xscale("log")
         a.set_xlabel("Ensemble size (members)")
-        a.set_ylabel(yl)
         a.grid(alpha=0.3)
     ax[1].axhline(1, color="gray", lw=1)
-    ax[0].legend(fontsize=8)
-    fig.suptitle("Skill and RPC converge only with large ensembles (synthetic SRO test)")
+    ax[0].legend(fontsize=7)
+    ax[1].legend(fontsize=7)
+    fig.suptitle("Synthetic SRO test: skill, perfect-model skill and RPC versus ensemble size")
     fig.tight_layout()
     fig.savefig(os.path.join(outdir, "fig1_convergence.png"), dpi=150)
 

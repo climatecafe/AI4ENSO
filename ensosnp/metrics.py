@@ -25,10 +25,62 @@ def model_snr(ens):
 
 
 def rpc(ens, obs):
+    """Naive RPC: the ensemble-mean variance is used as the signal variance.
+
+    With few members the ensemble mean still contains noise (variance noise/N), so the
+    signal is overestimated and RPC is biased low. Use rpc_corrected for small ensembles.
+    """
     em = ens.mean(axis=1)
     var_signal = em.var()
     var_total = ens.var()  # variance of individual members across starts and members
     return float(acc(ens, obs) / np.sqrt(var_signal / var_total))
+
+
+def signal_variance(ens):
+    """Unbiased estimate of the model's predictable (signal) variance.
+
+    var(ensemble mean) = var(signal) + var(noise)/N, so subtract the noise term.
+    """
+    n = ens.shape[1]
+    em = ens.mean(axis=1)
+    var_noise = ens.var(axis=1, ddof=1).mean()
+    return float(max(em.var() - var_noise / n, 1e-12))
+
+
+def acc_infinite(ens, obs):
+    """Estimate of the ACC an infinitely large ensemble would reach.
+
+    A finite ensemble mean contains residual noise, which lowers its correlation with
+    observations: r_N = r_inf * sqrt(var_signal / var(ensemble mean)). Inverting gives r_inf.
+    """
+    em_var = ens.mean(axis=1).var()
+    return float(acc(ens, obs) * np.sqrt(em_var / signal_variance(ens)))
+
+
+def rpc_corrected(ens, obs):
+    """RPC with the small-ensemble bias removed from both numerator and denominator.
+
+    Uses the infinite-ensemble ACC and the unbiased signal variance, so its expected value
+    does not depend on ensemble size: a larger ensemble measures the SNP more precisely
+    (less scatter), but does not make it go away.
+    """
+    return float(acc_infinite(ens, obs) / np.sqrt(signal_variance(ens) / ens.var()))
+
+
+def perfect_model_acc(ens, max_members=10):
+    """Skill of the model at predicting itself.
+
+    Each of up to max_members members in turn is treated as 'truth' and correlated with
+    the mean of the remaining members. The SNP shows up as acc(ens, obs) > this value.
+    """
+    n = ens.shape[1]
+    if n < 2:
+        return float("nan")
+    vals = []
+    for j in range(min(n, max_members)):
+        rest = np.delete(ens, j, axis=1).mean(axis=1)
+        vals.append(np.corrcoef(rest, ens[:, j])[0, 1])
+    return float(np.mean(vals))
 
 
 def spread_skill(ens, obs):
@@ -42,23 +94,26 @@ def spread_skill(ens, obs):
 def convergence(ens, obs, sizes, n_boot=200, seed=0):
     """ACC and RPC as a function of ensemble size, by resampling members.
 
-    Returns dict of arrays (len(sizes),) with mean ACC, RPC and model SNR.
+    Returns dict of arrays (len(sizes),): ACC against observations, perfect-model ACC
+    (the model predicting itself), naive RPC, bias-corrected RPC and model SNR.
     """
     rng = np.random.default_rng(seed)
     n_members = ens.shape[1]
-    out = {"size": np.asarray(sizes), "acc": [], "rpc": [], "snr": []}
+    keys = ("acc", "acc_perfect", "rpc", "rpc_corrected", "snr")
+    out = {"size": np.asarray(sizes), **{k: [] for k in keys}}
     for n in sizes:
-        a, r, s = [], [], []
+        vals = {k: [] for k in keys}
         for _ in range(n_boot):
             idx = rng.choice(n_members, size=n, replace=n > n_members)
             sub = ens[:, idx]
-            a.append(acc(sub, obs))
-            r.append(rpc(sub, obs))
-            s.append(model_snr(sub))
-        out["acc"].append(np.mean(a))
-        out["rpc"].append(np.mean(r))
-        out["snr"].append(np.mean(s))
-    for k in ("acc", "rpc", "snr"):
+            vals["acc"].append(acc(sub, obs))
+            vals["acc_perfect"].append(perfect_model_acc(sub))
+            vals["rpc"].append(rpc(sub, obs))
+            vals["rpc_corrected"].append(rpc_corrected(sub, obs))
+            vals["snr"].append(model_snr(sub))
+        for k in keys:
+            out[k].append(np.nanmean(vals[k]))
+    for k in keys:
         out[k] = np.asarray(out[k])
     return out
 

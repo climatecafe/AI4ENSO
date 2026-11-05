@@ -44,32 +44,48 @@ python demo_sro.py           # about 1 min; writes figures and results.json to r
 
 ## Results (full run, winter-mean Niño-3.4 on test years)
 
-| Ensemble | Winter 2 ACC | Winter 2 RPC | Winter 3 ACC | Winter 3 RPC |
-|---|---|---|---|---|
-| Physics, 20 members | 0.68 | 1.13 | 0.42 | 1.08 |
-| Physics, 1000 members (reference) | 0.72 | 1.26 | 0.52 | 1.53 |
-| Gaussian emulator, 1000 members | 0.72 | 1.24 | 0.53 | 1.52 |
-| Diffusion emulator, 1000 members | 0.71 | 1.22 | 0.51 | 1.43 |
+ACC = ensemble mean vs observations; perfect-model ACC = the model predicting itself (one
+member as truth, the rest as forecast); RPC = bias-corrected ratio of predictable components.
+An SNP means ACC > perfect-model ACC and RPC > 1.
+
+| Ensemble | W2 ACC | W2 perfect-model ACC | W2 RPC | W3 ACC | W3 perfect-model ACC | W3 RPC |
+|---|---|---|---|---|---|---|
+| Physics, 20 members | 0.68 | 0.55 | 1.25 | 0.42 | 0.31 | 1.53 |
+| Physics, 1000 members (reference) | 0.72 | 0.55 | 1.26 | 0.52 | 0.33 | 1.54 |
+| Gaussian emulator, 1000 members | 0.72 | 0.61 | 1.24 | 0.53 | 0.40 | 1.54 |
+| Diffusion emulator, 1000 members | 0.71 | 0.61 | 1.22 | 0.51 | 0.33 | 1.44 |
 
 What this shows:
 
-1. **The SNP is real in the test bed.** With 1000 members, RPC reaches 1.26 in winter 2 and
-   1.53 in winter 3. The model predicts the observations better than it predicts itself.
-2. **Small ensembles hide skill and understate the SNP.** With 20 members, winter-3 skill is
-   0.42 instead of 0.52, and the RPC is underestimated too (`results/fig1_convergence.png`).
-3. **Emulators trained on 20 members recover the 1000-member answer.** Both emulators
-   reproduce the large-ensemble skill and RPC from held-out initial states.
-4. **The ROM fingerprint catches fidelity errors.** With only 16 principal components, both
+1. **The SNP is real in the test bed.** The model predicts the observations (ACC 0.72 in
+   winter 2) better than it predicts itself (0.55). RPC is 1.26 in winter 2 and 1.54 in
+   winter 3.
+2. **Large ensembles reduce the damage the SNP does to skill, but not the SNP itself.**
+   Because each member carries a weak signal, many members are needed to average out the
+   noise: winter-3 skill rises from 0.42 with 20 members to 0.52 with 1000. Perfect-model skill
+   rises too, so the gap between the two curves stays (`results/fig1_convergence.png`, left).
+   The SNP comes from the model's physics (here, too much damping and noise); more members
+   estimate it more precisely but do not remove it. That is why the correction step is needed.
+3. **Naive RPC is biased low for small ensembles.** Using the ensemble-mean variance as the
+   signal variance, and the finite-ensemble ACC, both understate the SNP when there are few
+   members: the naive winter-2 RPC rises from 0.91 at 5 members to 1.26 at 1000. Correcting
+   both terms for residual noise (`metrics.rpc_corrected`) gives a nearly constant RPC,
+   between 1.25 and 1.30 at every ensemble size (`results/fig1_convergence.png`, right).
+4. **Emulators trained on 20 members recover the 1000-member answer.** Both emulators
+   reproduce the large-ensemble skill and RPC from held-out initial states. The Gaussian
+   emulator's members are slightly too predictable (perfect-model ACC 0.61 vs 0.55 in winter 2
+   and 0.40 vs 0.33 in winter 3); the diffusion emulator matches winter 3 better.
+5. **The ROM fingerprint catches fidelity errors.** With only 16 principal components, both
    emulators matched skill and RPC but underestimated the noise amplitudes σT and σh by about
    one third, because PCA truncation smoothed month-to-month variability. With 48 components
    (99.8% of variance) the fingerprint matches the physics model
    (`results/fig2_rom_fingerprint.png`). Skill scores alone would not have revealed this.
-5. **State-dependent noise remains a challenge.** In the physics model, winter-1 spread is
+6. **State-dependent noise remains a challenge.** In the physics model, winter-1 spread is
    1.7 times larger after warm starts than after cold starts. The Gaussian benchmark cannot
    represent this (ratio 1.00 by construction). The diffusion emulator learns some of it
    (1.13) but not all. This is the main target for improvement (larger network, PyTorch,
    more training data).
-6. **Correction step.** An RPC-based rescaling estimated on training years raises the
+7. **Correction step.** An RPC-based rescaling estimated on training years raises the
    winter-2 ensemble-mean signal from 0.84 to 1.08 °C, closer to the amplitude implied by the
    observed predictable signal. In this toy case it does not change RMSE (1.02 → 1.02),
    as expected for a variance-matching (not MSE-minimizing) adjustment. Its value is in
