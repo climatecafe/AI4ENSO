@@ -140,23 +140,28 @@ def main(quick=False, outdir="results"):
         print(f"  {name:<16} {v:.2f}")
 
     # ---- 6. correct for the SNP (winter 2 example) ---------------------------------------
+    # Scaling factors are estimated on training years with emulator ensembles of the same
+    # size as those they are applied to, then applied to held-out test years.
     ob_tr = M.winter_mean(obs_T[tr], start_month, 1)
     ob_te = M.winter_mean(obs_T[te], start_month, 1)
-    e_tr = M.winter_mean(hT[tr], start_month, 1)
+    Ctr = np.stack([T_init[tr], h_init[tr]], axis=1)
+    e_tr = M.winter_mean(diff.sample(Ctr, n_big, seed=7)[..., :lead], start_month, 1)
     e_te = M.winter_mean(out["diffusion"][0], start_month, 1)
-    em_adj, scale = M.rpc_adjust(e_te, ob_tr, e_tr)
-    raw = e_te.mean(axis=1)
-    corr = {
-        "scale_factor": scale,
-        "raw_rmse": float(np.sqrt(np.mean((raw - ob_te) ** 2))),
-        "adjusted_rmse": float(np.sqrt(np.mean((em_adj - ob_te) ** 2))),
-        "raw_signal_std": float(raw.std()),
-        "adjusted_signal_std": float(em_adj.std()),
-        "obs_std": float(ob_te.std()),
-    }
-    print(f"\nSNP correction (winter 2): signal scaled by {scale:.2f}; "
-          f"ensemble-mean std {corr['raw_signal_std']:.2f} -> {corr['adjusted_signal_std']:.2f} C "
-          f"(obs {corr['obs_std']:.2f}); RMSE {corr['raw_rmse']:.2f} -> {corr['adjusted_rmse']:.2f}")
+    cal, s_sig, s_noise = M.calibrate_ensemble(e_te, ob_tr, e_tr)
+
+    def _stats(x):
+        em = x.mean(axis=1)
+        return {"signal_std": float(em.std()), "rmse": float(np.sqrt(np.mean((em - ob_te) ** 2))),
+                "spread_skill": M.spread_skill(x, ob_te), "crps": M.crps(x, ob_te)}
+
+    corr = {"obs_std": float(ob_te.std()), "signal_scale": s_sig, "noise_scale": s_noise,
+            "raw": _stats(e_te), "calibrated": _stats(cal)}
+    print(f"\nSNP correction, winter 2 (diffusion emulator, {n_big} members; obs std {corr['obs_std']:.2f} C)")
+    print(f"factors from training years: signal x{s_sig:.2f}, noise x{s_noise:.2f}")
+    print(f"{'':<12}{'signal std':>11}{'RMSE':>7}{'spread/skill':>14}{'CRPS':>7}")
+    for k in ("raw", "calibrated"):
+        c = corr[k]
+        print(f"{k:<12}{c['signal_std']:11.2f}{c['rmse']:7.2f}{c['spread_skill']:14.2f}{c['crps']:7.3f}")
 
     # ---- figures ------------------------------------------------------------------------
     sizes = [5, 10, 20, 50, 100, 200, n_big]

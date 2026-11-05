@@ -118,18 +118,40 @@ def convergence(ens, obs, sizes, n_boot=200, seed=0):
     return out
 
 
-def rpc_adjust(ens, obs_train, ens_train):
-    """'Correct for' the SNP by rescaling the ensemble-mean signal (Eade et al. 2014).
+def calibrate_ensemble(ens, obs_train, ens_train):
+    """Correct a whole ensemble for the SNP (after Eade et al. 2014).
 
-    The scaling factor is estimated on training starts and applied to new starts, so the
-    calibrated ensemble mean has the variance implied by the observed predictable signal.
+    1. Signal: the ensemble mean is rescaled so its variance equals the observed predictable
+       variance, r^2 var(obs). This factor, r std(obs) / std(ensemble mean), is identical to
+       the regression slope of observations on the ensemble mean (the RPS scaling used by
+       Smith et al. 2025), so the two corrections coincide for the ensemble mean.
+    2. Noise: member deviations from the ensemble mean are rescaled so their variance equals
+       the unpredictable part, (1 - r^2) var(obs). This step makes probabilities reliable.
+
+    Factors are estimated on training starts and applied to new starts.
+    Returns the calibrated ensemble (same shape as ens) and the two factors.
     """
-    em_train = ens_train.mean(axis=1)
+    em_tr = ens_train.mean(axis=1)
     r = acc(ens_train, obs_train)
-    target_std = r * obs_train.std()
-    scale = target_std / em_train.std()
-    em = ens.mean(axis=1)
-    return em * scale, float(scale)
+    sig_scale = r * obs_train.std() / em_tr.std()
+    noise_var = ens_train.var(axis=1, ddof=1).mean()
+    noise_scale = np.sqrt(max(1 - r ** 2, 1e-6) * obs_train.var() / noise_var)
+    em = ens.mean(axis=1, keepdims=True)
+    out = em * sig_scale + (ens - em) * noise_scale
+    return out, float(sig_scale), float(noise_scale)
+
+
+def crps(ens, obs):
+    """Mean continuous ranked probability score of an ensemble forecast (lower is better).
+
+    CRPS = E|X - y| - 0.5 E|X - X'|, computed from sorted members for efficiency.
+    """
+    x = np.sort(ens, axis=1)
+    n = x.shape[1]
+    term1 = np.abs(x - obs[:, None]).mean(axis=1)
+    w = (2 * np.arange(1, n + 1) - n - 1) / n ** 2
+    term2 = (x * w).sum(axis=1)  # equals 0.5 E|X - X'|
+    return float(np.mean(term1 - term2))
 
 
 def winter_mean(x, start_month, winter_index, months=(12, 1, 2)):

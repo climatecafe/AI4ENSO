@@ -1,8 +1,7 @@
-# enso-snp-emulator
+# AI4ENSO
 
-A prototype for building a generative AI emulator of multi-year ENSO hindcasts and using
-it to diagnose and correct for the signal-to-noise paradox (SNP). This is the
-"diagnose → explain → correct" workflow proposed for NOAA CPO FY27 Priority Area 1.
+Generative AI emulators of multi-year ENSO hindcasts, and tools to diagnose, explain and
+correct for the signal-to-noise paradox (SNP) in initialized climate predictions.
 
 The emulator does **not** replace the full physics model. It learns one thing: given the
 tropical Pacific state at initialization, what range of multi-year ENSO trajectories
@@ -23,14 +22,14 @@ python demo_sro.py           # about 1 min; writes figures and results.json to r
 
 ## What is in the package
 
-| File | Purpose | Proposal objective |
+| File | Purpose | Step |
 |---|---|---|
 | `ensosnp/sro.py` | Stochastic recharge oscillator (Bai et al., 2026 form, with seasonal growth rate and state-dependent noise); long runs and initialized ensemble hindcasts | Synthetic test bed |
-| `ensosnp/emulator.py` | `GaussianEmulator` (benchmark) and `DiffusionEmulator` (conditional DDPM) in a reduced PCA space, conditioned on the initial state | 1. Diagnose (generative ensembles) |
-| `ensosnp/rofit.py` | Recharge-oscillator fingerprint: fits growth rate R(month), feedbacks F1, F2 and noise amplitudes σT, σh from monthly T and h | Process-fidelity test; 2. Explain |
-| `ensosnp/metrics.py` | ACC, RPC, model SNR, spread–skill ratio, ensemble-size convergence, multi-year El Niño persistence, RPC-based SNP adjustment | 1. Diagnose; 3. Correct |
+| `ensosnp/emulator.py` | `GaussianEmulator` (benchmark) and `DiffusionEmulator` (conditional DDPM) in a reduced PCA space, conditioned on the initial state | Diagnose (generative ensembles) |
+| `ensosnp/rofit.py` | Recharge-oscillator fingerprint: fits growth rate R(month), feedbacks F1, F2 and noise amplitudes σT, σh from monthly T and h | Process-fidelity test; explain |
+| `ensosnp/metrics.py` | ACC, RPC, model SNR, spread–skill ratio, perfect-model and bias-corrected skill, ensemble-size convergence, multi-year El Niño persistence, ensemble calibration, CRPS | Diagnose; correct |
 | `ensosnp/data_prep.py` | **Untested template** for turning SPEAR or CESM2 hindcast files into emulator inputs | Real-data step |
-| `demo_sro.py` | End-to-end synthetic experiment and figures | All |
+| `demo_sro.py` | End-to-end synthetic experiment and figures | All steps |
 
 ## Demo design
 
@@ -85,11 +84,25 @@ What this shows:
    represent this (ratio 1.00 by construction). The diffusion emulator learns some of it
    (1.13) but not all. This is the main target for improvement (larger network, PyTorch,
    more training data).
-7. **Correction step.** An RPC-based rescaling estimated on training years raises the
-   winter-2 ensemble-mean signal from 0.84 to 1.08 °C, closer to the amplitude implied by the
-   observed predictable signal. In this toy case it does not change RMSE (1.02 → 1.02),
-   as expected for a variance-matching (not MSE-minimizing) adjustment. Its value is in
-   realistic signal amplitude and calibrated probabilities, which still need to be scored.
+7. **Correction step.** `calibrate_ensemble` follows Eade et al. (2014): it rescales the
+   ensemble-mean signal so its variance matches the observed predictable variance, and
+   rescales member deviations so the spread matches the unpredictable part. For the ensemble
+   mean, this factor equals the regression slope of observations on the ensemble mean, so it
+   is the same as the ratio-of-predictable-signals (RPS) scaling used by Smith et al. (2025).
+   Factors are estimated on training years and applied to test years (winter 2, diffusion
+   emulator, 1000 members):
+
+   | | Signal std (°C) | RMSE | Spread/skill | CRPS |
+   |---|---|---|---|---|
+   | Raw | 0.84 | 1.02 | 1.15 | 0.586 |
+   | Calibrated | 1.22 | 1.04 | 1.04 | 0.596 |
+
+   Calibration makes the ensemble more reliable (spread/skill closer to 1) and restores a
+   realistic signal amplitude, but CRPS and RMSE do not improve on the test years. The signal
+   factor estimated from 141 training years (×1.46) is larger than the test years would
+   support (about ×1.2). Like the RPS scaling in Smith et al. (2025), this purely statistical
+   correction is sensitive to sampling. Physically based corrections, informed by the ROM
+   fingerprint, are the next step.
 
 ## Caveats
 
@@ -117,6 +130,7 @@ What this shows:
 - Bai, K., Jin, Y., Zhang, W., Lin, X., & Kirtman, B. (2026). Atmospheric noise forcing increases multiyear El Niño events. *GRL*, 53(14), e2026GL123553.
 - Eade, R., et al. (2014). Do seasonal-to-decadal climate predictions underestimate the predictability of the real world? *GRL*, 41, 5620–5628.
 - Jin, Y. (2022). The signal-to-noise paradox in ENSO prediction: Role of ENSO growth rate and period. *GRL*, 49(12), e2022GL097965.
+- Smith, D. M., Dunstone, N. J., Eade, R., Hardiman, S. C., Hermanson, L., Scaife, A. A., & Seabrook, M. (2025). Mitigation needed to avoid unprecedented multi-decadal North Atlantic Oscillation magnitude. *Nature Climate Change*, 15, 403–410.
 - Vialard, J., et al. (2025). The ENSO recharge oscillator conceptual model: Achievements and future prospects. *Reviews of Geophysics*, 63(1), e2024RG000843.
 - Vijayeta, A., & Dommenget, D. (2018). An evaluation of ENSO dynamics in CMIP simulations in the framework of the recharge oscillator model. *Climate Dynamics*, 51, 1753–1771.
 - Zhang, W., & Kirtman, B. (2019). Understanding the signal-to-noise paradox with a simple Markov model. *GRL*, 46(22), 13308–13317.
